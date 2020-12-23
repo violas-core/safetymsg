@@ -1,7 +1,10 @@
 import os
 import base64
 from Crypto import Random
-from Crypto.Hash import SHA256
+from Crypto.Hash import (
+        SHA256,
+        MD5
+        )
 from Crypto.Signature import (
         PKCS1_v1_5 as Signature_pkcs1_v1_5
         )
@@ -49,7 +52,7 @@ def load_key_from_file(filename):
     if not os.path.isfile(filename):
         raise ValueError(f"input filename({filename}) not found.")
 
-    with open(doc) as pk:
+    with open(filename, "rb") as pk:
         key= pk.read()
         return base64.b64encode(key)
     raise Exception(f"load key failed from {filename}")
@@ -93,9 +96,11 @@ def generate_sign(privkey, unsign_message, secret = None):
    @return true : signature is ok false : not valid signature
 '''
 def encrypt(pubkey, message, secret = None):
+    if isinstance(message, str):
+        message = message.encode("utf8")
     rsaKey = RSA.importKey(base64.b64decode(pubkey), passphrase=secret)
     cipher = Cipher_pkcs1_v1_5.new(rsaKey)
-    encrypt_message = cipher.encrypt(bytes(message.encode("utf8")))
+    encrypt_message = cipher.encrypt(message)
 
     return base64.b64encode(encrypt_message)
 
@@ -111,4 +116,6 @@ def decrypt(privkey, encrypt_message, secret = None, sentinel = None):
     cipher = Cipher_pkcs1_v1_5.new(rsaKey)
     return cipher.decrypt(base64.b64decode(encrypt_message), sentinel)
 
-
+def make_md5(message):
+    md5 = MD5.new(message)
+    return md5.hexdigest()
