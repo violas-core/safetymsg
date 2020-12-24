@@ -34,7 +34,6 @@ class autoname(enumbase):
     def _generate_next_value_(name, start, count, last_values):
         return name.lower()
 
-
 class azure_key_vault(object):
     SPLIT_SYMBOL = ";"
 
@@ -58,9 +57,9 @@ class azure_key_vault(object):
         if not names:
             raise ValueError(f"input args({names}) is invalid.")
 
-        setattr(self, self.secret.ATTER_NAMES.value, set(names))
+        setattr(self, self.secret.ATTER_NAMES.NAMES.value, set(names))
         for name in self.names:
-            setattr(self, name, secret(name))
+            setattr(self, name, self.secret(name))
 
     def get(self, name):
         return getattr(self, name if isinstance(name, str) else name.value)
@@ -95,13 +94,15 @@ class azure_names(autoname):
 class safemsgclient(object):
 
 
-    def key_source(autoname):
+    class key_source(autoname):
         FILE            = auto()
-        KEY_VALUE       = auto()
+        KEY_VAULT       = auto()
         MEMORY          = auto()
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, key_source = key_source.FILE, *args, **kwargs):
         self.__init_azure_env_id()
+        self.__init_azure_key_value_name()
+        self.set_key_source(key_source)
         pass
 
     def __init_azure_env_id(self):
@@ -124,30 +125,37 @@ class safemsgclient(object):
             return load_key_from_file(filename)
         return None
 
-    def pre_azure_key(self, f):
-        @wraps
-        def use_azure(self, *args, **kwargs):
-            key_source = kwargs.get("key_source")
+    def pre_azure_key(f):
+        #@wraps
+        def use_azure(*args, **kwargs):
+            self = args[0]
+            args = list(args[1:])
+            key_source = getattr(self, "key_source")
 
-            key = None
-            if args[0] or len(arg[0]) or not key_source:
+            key = self.get_memory_key_value(f.__name__)
+            if args[0] and len(args[0]) > 0:
                 key = args[0]
+            elif key:
+                pass
             elif key_source == self.key_source.MEMORY:
                 key = self.get_memory_key_value(f.__name__)
             elif key_source == self.key_source.FILE:
                 filename = kwargs.get("filename")
+                print(f"filename: --- {filename}")
                 key = self.load_key(filename)
-            elif key_source == self.key_source.KEY_VALUE:
+                print(f"key:----{self.make_md5(key)}")
+            elif key_source == self.key_source.KEY_VAULT:
                 azure_name = kwargs.get("azure_key_vault")
                 key_vault = self.azure_key_vault.get(azure_name)
                 key = self.azure_get_secret(key_vault.key_vault_name, key_vault.key_name)
 
             args[0] = key
+            
             self.set_memory_key_value(f.__name__, key)
-            return f(*args, **kwargs)
+            return f(self, *args, **kwargs)
         return use_azure
 
-    @pre_azure_key()
+    @pre_azure_key
     def verify_sign(self, pubkey, message, sign, secret = None, **kwargs):
         return verify_sign(pubkey, message, sign, secret)
 
@@ -190,11 +198,14 @@ class safemsgclient(object):
     def create_memory_key(self, name):
         return f"memkey_{name}"
 
+    def set_key_source(self, key_source = key_source.MEMORY):
+        setattr(self, "key_source", key_source)
+
     def set_memory_key_value(self, name, value):
-        return setattr(self, create_memory_key(name), value)
+        return setattr(self, self.create_memory_key(name), value)
 
     def get_memory_key_value(self, name):
-        return getattr(self, create_memory_key(name))
+        return getattr(self, self.create_memory_key(name), None)
 
     def __getatter__(self, name):
         if getattr(self, name):

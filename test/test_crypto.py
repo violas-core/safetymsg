@@ -73,7 +73,7 @@ def test_encrypt_decrypt():
     message = "this is test encrypt and decrypt"
     print_log(f"test message: {message}")
 
-    encrypt_msg = smc().encrypt(pub, message)
+    encrypt_msg = smc().encrypt(pub, message, None)
     print_log(f"encrypt message: {encrypt_msg}")
 
     decrypt_msg = smc().decrypt(pri, encrypt_msg)
@@ -81,6 +81,26 @@ def test_encrypt_decrypt():
     
     assert decrypt_msg.decode() == message, f"encrypt/decrypt failed."
 
+
+@split_line
+def test_encrypt_decrypt_from_file():
+    pubfile = "encryptkey.rsa"
+    privfile = "decryptkey.rsa"
+    if not os.path.exists(pubfile) or not os.path.exists(privfile):
+        pri, pub = pri_pub()
+        smc().save(pub, pubfile)
+        smc().save(pri, privfile)
+
+    message = "this is test encrypt and decrypt"
+    print_log(f"test message: {message}")
+
+    encrypt_msg = smc().encrypt(None, message, filename=pubfile)
+    print_log(f"encrypt message: {encrypt_msg}")
+
+    decrypt_msg = smc().decrypt(None, encrypt_msg, filename = privfile)
+    print_log(f"decrypt message: {decrypt_msg.decode()}")
+    
+    assert decrypt_msg.decode() == message, f"encrypt/decrypt failed."
 
 
 if __name__ == "__main__":
