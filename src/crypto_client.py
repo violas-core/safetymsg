@@ -17,6 +17,7 @@ from Crypto.Cipher import (
  
 from functools import wraps
 
+from src.libfuncs import *
 
 '''
   @dev create private key and public key
@@ -31,13 +32,14 @@ def create_keys(num = 2048):
     rsa = RSA.generate(num, random_gen)
     pri = rsa.exportKey()
     pub = rsa.publickey().exportKey()
-    return (base64.b64encode(pri), base64.b64encode(pub))
+    return (bytes_to_str(base64.b64encode(pri)), bytes_to_str(base64.b64encode(pub)))
 
 '''
   @dev save key(public private) to filename
   @param key will save key with key desc, format the same to create_keys's return, type = string(base64)
 '''
 def save_file(key, filename):
+    key = str_to_bytes(key)
     with open(filename, 'wb') as pf:
         pf.write(base64.b64decode(key))
         return True
@@ -54,7 +56,7 @@ def load_key_from_file(filename):
 
     with open(filename, "rb") as pk:
         key= pk.read()
-        return base64.b64encode(key)
+        return bytes_to_str(base64.b64encode(key))
     raise Exception(f"load key failed from {filename}")
 
 '''
@@ -65,10 +67,13 @@ def load_key_from_file(filename):
    @return true : signature is ok false : not valid signature
 '''
 def verify_sign(pubkey, message, sign, secret = None):
+    pubkey = str_to_bytes(pubkey)
+    message = str_to_bytes(message)
+    sign = str_to_bytes(sign)
     rsaKey = RSA.importKey(base64.b64decode(pubkey), passphrase=secret)
     verifier = Signature_pkcs1_v1_5.new(rsaKey)
     digest = SHA256.new()
-    digest.update(message.encode('utf8'))
+    digest.update(message)
     is_verify = verifier.verify(digest, base64.b64decode(sign))
     return is_verify
 
@@ -80,13 +85,15 @@ def verify_sign(pubkey, message, sign, secret = None):
    @return singnature message
 '''
 def generate_sign(privkey, unsign_message, secret = None):
+    privkey = str_to_bytes(privkey)
+    unsign_message = str_to_bytes(unsign_message)
     rsaKey = RSA.importKey(base64.b64decode(privkey), passphrase=secret)
     signer = Signature_pkcs1_v1_5.new(rsaKey)
     digest = SHA256.new()
-    digest.update(unsign_message.encode('utf8'))
+    digest.update(unsign_message)
     sign = signer.sign(digest)
     signature = base64.b64encode(sign)
-    return signature
+    return bytes_to_str(signature)
 
 '''
    @dev encrypt message with pubkey 
@@ -96,13 +103,13 @@ def generate_sign(privkey, unsign_message, secret = None):
    @return true : signature is ok false : not valid signature
 '''
 def encrypt(pubkey, message, secret = None):
-    if isinstance(message, str):
-        message = message.encode("utf8")
+    pubkey = str_to_bytes(pubkey)
+    message = str_to_bytes(message)
     rsaKey = RSA.importKey(base64.b64decode(pubkey), passphrase=secret)
     cipher = Cipher_pkcs1_v1_5.new(rsaKey)
     encrypt_message = cipher.encrypt(message)
 
-    return base64.b64encode(encrypt_message)
+    return bytes_to_str(base64.b64encode(encrypt_message))
 
 '''
    @dev decrypt message
@@ -112,9 +119,11 @@ def encrypt(pubkey, message, secret = None):
    @return message
 '''
 def decrypt(privkey, encrypt_message, secret = None, sentinel = None):
+    privkey = str_to_bytes(privkey)
+    encrypt_message = str_to_bytes(encrypt_message)
     rsaKey = RSA.importKey(base64.b64decode(privkey), passphrase=secret)
     cipher = Cipher_pkcs1_v1_5.new(rsaKey)
-    return cipher.decrypt(base64.b64decode(encrypt_message), sentinel)
+    return bytes_to_str(cipher.decrypt(base64.b64decode(encrypt_message), sentinel))
 
 def make_md5(message):
     md5 = MD5.new(message)

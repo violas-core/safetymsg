@@ -3,27 +3,13 @@ import unittest
 
 sys.path.append("..")
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../"))
-from src.client import (
-     safemsgclient as smc
-        )
+from src import *
 from functools import (
      wraps
         )
 
-def print_log(data):
-    print(f"{data}")
-    pass
-
-def split_line(f):
-    @wraps(f)
-    def with_split_line(*args, **kwargs):
-        print_log(f"\n*********************call {f.__name__}*****************")
-        return f(*args, **kwargs)
-    return with_split_line
-
 
 def cut_key(key):
-    #print_log(f"key: {key}")
     return smc().make_md5(key)
 
 def pri_pub():
@@ -77,9 +63,9 @@ def test_encrypt_decrypt():
     print_log(f"encrypt message: {encrypt_msg}")
 
     decrypt_msg = smc().decrypt(pri, encrypt_msg)
-    print_log(f"decrypt message: {decrypt_msg.decode()}")
+    print_log(f"decrypt message: {decrypt_msg}")
     
-    assert decrypt_msg.decode() == message, f"encrypt/decrypt failed."
+    assert decrypt_msg == message, f"encrypt/decrypt failed."
 
 
 @split_line
@@ -98,9 +84,9 @@ def test_encrypt_decrypt_from_file():
     print_log(f"encrypt message: {encrypt_msg}")
 
     decrypt_msg = smc().decrypt(None, encrypt_msg, filename = privfile)
-    print_log(f"decrypt message: {decrypt_msg.decode()}")
+    print_log(f"decrypt message: {decrypt_msg}")
     
-    assert decrypt_msg.decode() == message, f"encrypt/decrypt failed."
+    assert decrypt_msg == message, f"encrypt/decrypt failed."
 
 
 if __name__ == "__main__":

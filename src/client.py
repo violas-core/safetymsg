@@ -13,8 +13,9 @@ from src.crypto_client import (
 from src.azure_key_vault_client import (
         get_secret as azure_get_secret,
         set_secret as azure_set_secret,
-        show_secrets as azure_show_secrets,
+        get_secrets_keys as azure_get_secrets_keys,
         azure_environ_name as eaen
+
         )
 from functools import (
         wraps
@@ -126,13 +127,13 @@ class safemsgclient(object):
         return None
 
     def pre_azure_key(f):
-        #@wraps
         def use_azure(*args, **kwargs):
             self = args[0]
             args = list(args[1:])
             key_source = getattr(self, "key_source")
 
-            key = self.get_memory_key_value(f.__name__)
+            memory_id = kwargs.get("memory_id")
+            key = self.get_memory_key_value(memory_id)
             if args[0] and len(args[0]) > 0:
                 key = args[0]
             elif key:
@@ -141,17 +142,17 @@ class safemsgclient(object):
                 key = self.get_memory_key_value(f.__name__)
             elif key_source == self.key_source.FILE:
                 filename = kwargs.get("filename")
-                print(f"filename: --- {filename}")
                 key = self.load_key(filename)
-                print(f"key:----{self.make_md5(key)}")
+                memory_id = filename if not memory_id else memory_id
             elif key_source == self.key_source.KEY_VAULT:
-                azure_name = kwargs.get("azure_key_vault")
+                azure_name = kwargs.get("azure_name")
                 key_vault = self.azure_key_vault.get(azure_name)
-                key = self.azure_get_secret(key_vault.key_vault_name, key_vault.key_name)
+                key = self.get_azure_secret(key_vault.key_vault_name, key_vault.key_name)
+                memory_id = f"{key_vault.key_vault_name}-{key_vault.key_name}" if not memory_id else memory_id
 
             args[0] = key
             
-            self.set_memory_key_value(f.__name__, key)
+            self.set_memory_key_value(memory_id, key)
             return f(self, *args, **kwargs)
         return use_azure
 
@@ -174,6 +175,7 @@ class safemsgclient(object):
     def make_md5(self, message):
         return make_md5(message)
 
+    #set azure env value
     def set_azure_client_id(self, id):
         self.AZURE_CLIENT_ID.env = id
 
@@ -183,18 +185,26 @@ class safemsgclient(object):
     def set_azure_client_secret(self, secret):
         self.AZURE_CLIENT_SECRET.env = secret
     
-    def get_azure_envs(self):
-        return {item.name : item.env for item in eaen}
+    def set_azure_secret_ids(self, client_id, tenant_id, secret):
+        self.set_azure_client_id(client_id)
+        self.set_azure_tenant_id(tenant_id)
+        self.set_azure_client_secret(secret)
 
-    def get_secret(self, vault_name, key_name):
+    def get_azure_envs(self):
+        return {item.name : getattr(self, item.name).env for item in eaen}
+
+    def get_azure_secret(self, vault_name, key_name):
         return azure_get_secret(vault_name, key_name)
 
-    def set_secret(self, vault_name, key_name, key_value):
+    def set_azure_secret(self, vault_name, key_name, key_value):
         return azure_set_secret(vault_name, key_name, key_value)
 
-    def set_key_path(self, azure_name : azure_names, key_vault_name, key_name):
-        return self.pre_azure_key_vault.set(azure_name, key_vault_name, key_name)
+    def set_azure_key_path(self, azure_name : azure_names, key_vault_name, key_name):
+        return self.azure_key_vault.set(azure_name, key_vault_name, key_name)
     
+    def get_azure_secrets_keys(self, vault_name):
+        return azure_get_secrets_keys(vault_name)
+
     def create_memory_key(self, name):
         return f"memkey_{name}"
 

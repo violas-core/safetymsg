@@ -166,7 +166,7 @@ def del_secret(vault_name, key_name):
 '''
 显示vault_name 中可用key
 '''
-def show_secrets(vault_name):
+def get_secrets_keys(vault_name):
     client = get_client(get_key_value_uri(vault_name))
     return [s.name for s in client.list_properties_of_secrets()]
 
