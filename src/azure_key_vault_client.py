@@ -47,7 +47,10 @@ import datetime
 '''
 
 
-from azure.keyvault.secrets import SecretClient
+from azure.keyvault.secrets import (
+        KeyVaultSecret,
+        SecretClient
+        )
 from azure.identity import (
         DefaultAzureCredential,
         EnvironmentCredential,
@@ -129,44 +132,78 @@ class azure_environ_name(autouppername):
 def get_key_value_uri(vault_name):
     return f"https://{vault_name}.vault.azure.net"
 
+#https://azuresdkdocs.blob.core.windows.net/$web/python/azure-keyvault-secrets/latest/azure.keyvault.secrets.html#module-azure.keyvault.secrets
 def get_client(uri):
     credential = DefaultAzureCredential()
     return SecretClient(vault_url=uri, credential=credential)
 
 '''
-从vault_name 中获取key_name存储的密钥
+(https://aka.ms/azsdk/python/keyvault-secrets/docs#azure.keyvault.secrets.SecretClient.get_secret)
+retrieves a secret previously stored in the Key Vault.
+
 '''
-def get_secret(vault_name, key_name):
+def get_secret(vault_name, key_name, version = None, **kwargs):
     client = get_client(get_key_value_uri(vault_name))
-    return client.get_secret(key_name).value
+    return client.get_secret(key_name, version, **kwargs)
+
 
 '''
-设置vault_name 中key_name存储的密钥
+(https://aka.ms/azsdk/python/keyvault-secrets/docs#azure.keyvault.secrets.SecretClient.set_secret)
+creates new secrets and changes the values of existing secrets. If no secret with the
+given name exists, `set_secret` creates a new secret with that name and the
+given value. If the given name is in use, `set_secret` creates a new version
+of that secret, with the given value.
 '''
-def set_secret(vault_name, key_name, key_value):
+def set_secret(vault_name, key_name, key_value, **kwargs):
     client = get_client(get_key_value_uri(vault_name))
-    return client.set_secret(key_name, key_value)
+    return client.set_secret(key_name, key_value, **kwargs)
 
 '''
-删除vault_name 中key_name及值
+(https://aka.ms/azsdk/python/keyvault-secrets/docs#azure.keyvault.secrets.SecretClient.begin_delete_secret)
+requests Key Vault delete a secret, returning a poller which allows you to wait for the deletion to finish. Waiting is
+helpful when the vault has [soft-delete][soft_delete] enabled, and you want to purge (permanently delete) the secret as
+soon as possible. When [soft-delete][soft_delete] is disabled, `begin_delete_secret` itself is permanent.
 '''
-def del_secret(vault_name, key_name):
+
+def del_secret(vault_name, key_name, **kwargs):
     client = get_client(get_key_value_uri(vault_name))
-    poller = client.begin_delete_secret(key_name)
-    deleted_secret = poller.result()
-
-    name = deleted_secret.name
-
-    # if the vault has soft-delete enabled, the secret's, deleted_date
-    # scheduled purge date and recovery id are set
-    # if you want to block until secret is deleted server-side, call wait() on the poller
-    poller.wait()
-    return name
+    list_deleted = client.list_deleted_secrets()
+    deleted_names = [item.name for item in list_deleted]
+    if key_name not in deleted_names:
+        poller = client.begin_delete_secret(key_name, **kwargs)
+        poller.wait()
     
+'''
+https://azuresdkdocs.blob.core.windows.net/$web/python/azure-keyvault-secrets/latest/azure.keyvault.secrets.html#azure.keyvault.secrets.SecretClient.begin_recover_deleted_secret
+Recover a deleted secret to its latest version. Possible only in a vault with soft-delete enabled.
+
+If the vault does not have soft-delete enabled, begin_delete_secret() is permanent, 
+and this method will return an error. Attempting to recover a non-deleted secret will also return an error.
+
+When this method returns Key Vault has begun recovering the secret. 
+Recovery may take several seconds. This method therefore returns a poller enabling you to wait for 
+recovery to complete. Waiting is only necessary when you want to use the recovered secret in another 
+operation immediately.
+'''
+def recover_deleted_secret(vault_name, key_name, **kwargs):
+    client = get_client(get_key_value_uri(vault_name))
+    poller = client.begin_recover_deleted_secret(key_name, **kwargs)
+    poller.wait
+
+
+'''
+https://azuresdkdocs.blob.core.windows.net/$web/python/azure-keyvault-secrets/latest/azure.keyvault.secrets.html#azure.keyvault.secrets.SecretClient.get_deleted_secret
+Get a deleted secret. Possible only in vaults with soft-delete enabled. Requires secrets/get permission.
+'''
+def get_deleted_secret(vault_name, key_name, **kwargs):
+    client = get_client(get_key_value_uri(vault_name))
+    return client.get_deleted_secret(key_name, **kwargs)
+
 '''
 显示vault_name 中可用key
 '''
 def get_secrets_keys(vault_name):
     client = get_client(get_key_value_uri(vault_name))
     return [s.name for s in client.list_properties_of_secrets()]
+
 

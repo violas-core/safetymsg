@@ -13,7 +13,9 @@ from src.crypto_client import (
 from src.azure_key_vault_client import (
         get_secret as azure_get_secret,
         set_secret as azure_set_secret,
+        del_secret as azure_del_secret, 
         get_secrets_keys as azure_get_secrets_keys,
+        get_deleted_secret as azure_get_deleted_secret,
         azure_environ_name as eaen
 
         )
@@ -175,7 +177,8 @@ class safemsgclient(object):
     def make_md5(self, message):
         return make_md5(message)
 
-    #set azure env value
+    ''' set azure env value
+    '''
     def set_azure_client_id(self, id):
         self.AZURE_CLIENT_ID.env = id
 
@@ -191,13 +194,76 @@ class safemsgclient(object):
         self.set_azure_client_secret(secret)
 
     def get_azure_envs(self):
+        '''
+            @dev show all environ info of azure
+            @return all environ info for azure
+        '''
         return {item.name : getattr(self, item.name).env for item in eaen}
 
-    def get_azure_secret(self, vault_name, key_name):
-        return azure_get_secret(vault_name, key_name)
+    '''
+       azure key vault operate, must connect azure with azure cli or environ id
+       connect to azure:
+            case 1： az login -u USERNAME -p PASSWORD
+            case 2:  use set_azure_secret_ids to set environ id
+       CRUD operate: get_azure_secret, set_azure_secret, del_azure_secret
+    '''
+    def get_azure_secret(self, vault_name, key_name, version = None, **kwargs):
+        '''
+        @dev get secret from azure key vault
+        @param vault_name key vault name
+        @param key_name sercrt's key 
+        @param version version of the secret to get. if unspecified, gets the latest version
+        @return secret(KeyVaultSecret) 
+        '''
+        return azure_get_secret(vault_name, key_name, version, **kwargs)
 
-    def set_azure_secret(self, vault_name, key_name, key_value):
-        return azure_set_secret(vault_name, key_name, key_value)
+    def get_azure_secret_value(self, vault_name, key_name):
+        '''
+        @dev get secret from azure key vault
+        @param vault_name name of key vault 
+        @param key_name the name of secret 
+        @param key_value the value of secret
+        @return value of secret(KeyVaultSecret) 
+        '''
+        return self.get_azure_secret(vault_name, key_name).value
+
+    def set_azure_secret(self, vault_name, key_name, key_value, **kwargs):
+        '''
+        @def set a secret value. If name is in use, create a new version of the secret. If not, create a new secret.
+        @param vault_name name of key vault 
+        @param key_name the name of secret 
+        @param key_value the value of secret
+        @param kwargs 
+            enabled (bool) – Whether the secret is enabled for use.
+            tags (dict[str, str]) – Application specific metadata in the form of key-value pairs.
+            content_type (str) – An arbitrary string indicating the type of the secret, e.g. ‘password’
+            not_before (datetime) – Not before date of the secret in UTC
+            expires_on (datetime) – Expiry date of the secret in UTC
+        @return KeyVaultSecret
+        '''
+
+        return azure_set_secret(vault_name, key_name, key_value, **kwargs)
+
+    def del_azure_secret(self, vault_name, key_name, **kwargs):
+        return azure_del_secret(vault_name, key_name, **kwargs)
+
+    def get_azure_deleted_secret(self, vault_name, key_name, **kwargs):
+        '''
+        @dev get secret from azure key vault
+        @param vault_name key vault name
+        @param key_name sercrt's key 
+        @return secret(DeletedSecret) 
+        '''
+        return azure_get_deleted_secret(vault_name, key_name, **kwargs)
+
+    def get_azure_deleted_secret_value(self, vault_name, key_name, **kwargs):
+        '''
+        @dev get secret from azure key vault
+        @param vault_name key vault name
+        @param key_name sercrt's key 
+        @return id of secret(DeletedSecret) 
+        '''
+        return self.get_azure_deleted_secret(vault_name, key_name, **kwargs).id
 
     def set_azure_key_path(self, azure_name : azure_names, key_vault_name, key_name):
         return self.azure_key_vault.set(azure_name, key_vault_name, key_name)
@@ -222,6 +288,7 @@ class safemsgclient(object):
             return getattr(self, name)
 
         return safemsgclient()
+
 
     def __call__(self, *args, **kwargs):
         pass

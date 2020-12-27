@@ -1,4 +1,5 @@
 import os, sys
+import time
 
 sys.path.append("..")
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../"))
@@ -31,7 +32,7 @@ def test_get_secret_from_azure():
     print_log(f"{vault_name} keys: {key_names}")
 
     for key_name in key_names:
-        print_log(f"{vault_name}.{key_name} value: {client.get_azure_secret(vault_name, key_name)}")
+        print_log(f"{vault_name}.{key_name} value: {client.get_azure_secret_value(vault_name, key_name)}")
 
 def test_set_secret_to_azure():
     client = smc(key_source.KEY_VAULT)
@@ -45,9 +46,26 @@ def test_set_secret_to_azure():
     client.set_azure_secret(vault_name, key_pri_name, pri_key)
     client.set_azure_secret(vault_name, key_pub_name, pub_key)
 
-    ret_pri_key = client.get_azure_secret(vault_name, key_pri_name)
+    ret_pri_key = client.get_azure_secret_value(vault_name, key_pri_name)
     assert pri_key == ret_pri_key, f"get {key_pri_name} failed. pri_key != ret_pri_key"
 
     
-    ret_pub_key = client.get_azure_secret(vault_name, key_pub_name)
+    ret_pub_key = client.get_azure_secret_value(vault_name, key_pub_name)
     assert pub_key == ret_pub_key, f"get {key_pub_name} failed. pub_key != ret_pub_key"
+
+def test_del_secret_to_azure():
+    client = smc(key_source.KEY_VAULT)
+    client_id , tenant_id, secret = __get_ids()
+    client.set_azure_secret_ids( client_id, tenant_id, secret)
+    vault_name = "vault-test02"
+    key_del_name = f"key-del-test-{int(time.time())}"
+    key_del_value = f"this is test del at {key_del_name}"
+
+    print_log(f"test del {key_del_name} : {key_del_value}")
+    client.set_azure_secret(vault_name, key_del_name, key_del_value)
+
+    client.del_azure_secret(vault_name, key_del_name)
+
+    
+    id = client.get_azure_deleted_secret_value(vault_name, key_del_name)
+    assert id, f"get {key_del_name} failed"

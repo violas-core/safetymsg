@@ -126,5 +126,6 @@ def decrypt(privkey, encrypt_message, secret = None, sentinel = None):
     return bytes_to_str(cipher.decrypt(base64.b64decode(encrypt_message), sentinel))
 
 def make_md5(message):
+    message = str_to_bytes(message)
     md5 = MD5.new(message)
     return md5.hexdigest()
