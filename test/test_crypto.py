@@ -88,6 +88,11 @@ def test_encrypt_decrypt_from_file():
     
     assert decrypt_msg == message, f"encrypt/decrypt failed."
 
+def __get_ids():
+    client_id = "80f16cbd-e549-4c93-9e7b-22a91c8615d4"
+    tenant_id = "d99eee11-8587-4c34-9201-38d5247df9c9"
+    secret = "sUN0g~V9o81.M5UP1tJHKRMgxS_ru7g~O~"
+    return (client_id, tenant_id, secret)
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,7 @@ from src.libfuncs import (
 import src.client
 safemsgclient = src.client.safemsgclient
 key_source = src.client.safemsgclient.key_source
-azure_names = src.client.azure_names
+azure_names = src.client.safemsgclient.azure_names
 smc = src.client.safemsgclient
 
 __all__ = [

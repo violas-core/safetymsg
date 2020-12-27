@@ -173,6 +173,22 @@ def del_secret(vault_name, key_name, **kwargs):
         poller = client.begin_delete_secret(key_name, **kwargs)
         poller.wait()
     
+def purge_deleted_secret(vault_name, key_name, **kwargs):
+    client = get_client(get_key_value_uri(vault_name))
+    if secret_is_deleted(None, key_name, client):
+        client.purge_deleted_secret(key_name, **kwargs)
+
+def get_deleted_secret_names(vault_name, client = None):
+    if not client:
+        client = get_client(get_key_value_uri(vault_name))
+    list_deleted = client.list_deleted_secrets()
+    return [item.name for item in list_deleted]
+
+def secret_is_deleted(vault_name, key_name, client = None):
+    if not client:
+        client = get_client(get_key_value_uri(vault_name))
+    return key_name in get_deleted_secret(None, client)
+
 '''
 https://azuresdkdocs.blob.core.windows.net/$web/python/azure-keyvault-secrets/latest/azure.keyvault.secrets.html#azure.keyvault.secrets.SecretClient.begin_recover_deleted_secret
 Recover a deleted secret to its latest version. Possible only in a vault with soft-delete enabled.

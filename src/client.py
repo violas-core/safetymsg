@@ -16,6 +16,7 @@ from src.azure_key_vault_client import (
         del_secret as azure_del_secret, 
         get_secrets_keys as azure_get_secrets_keys,
         get_deleted_secret as azure_get_deleted_secret,
+        purge_deleted_secret as azure_purge_deleted_secret,
         azure_environ_name as eaen
 
         )
@@ -64,8 +65,16 @@ class azure_key_vault(object):
         for name in self.names:
             setattr(self, name, self.secret(name))
 
+    def name_to_str(self, name):
+        return name if isinstance(name, str) else name.value
+
+    def add(self, name):
+        name = self.name_to_str(name)
+        setattr(self, name, self.secret(name))
+
     def get(self, name):
-        return getattr(self, name if isinstance(name, str) else name.value)
+        name = self.name_to_str(name)
+        return getattr(self, name)
 
     def set(self, name, key_vault_name, key_name, key_value = ""):
         secret = self.get(name)
@@ -75,45 +84,49 @@ class azure_key_vault(object):
         secret.key_name = key_name
         secret.key_value = key_value
 
+    def is_exists(self, name):
+        name = self.name_to_str(name)
+
+        return name in self.names
+
     def __getatter__(self, name):
         if name == self.secret.ATTER_NAMES.ITEMS.value:
             return [getattr(self, name) for name in self.names]
         elif name == self.secret.ATTER_NAMES.NAMES.value:
             return self.names
 
-
-class azure_names(autoname):
-    '''
-       SIGN_KEY: private key
-       VERIFY_KEY: SIGN_KEY's public key 
-       ENCRYPT_KEY: public key
-       DECRYPT_KEY: ENCRYPT_KEY's public key
-    '''
-    SIGN_KEY        = auto()
-    VERIFY_KEY      = auto()
-    ENCRYPT_KEY     = auto()
-    DECRYPT_KEY     = auto()
-
 class safemsgclient(object):
 
-
+    class azure_names(autoname):
+        '''
+           SIGN_KEY: private key
+           VERIFY_KEY: SIGN_KEY's public key 
+           ENCRYPT_KEY: public key
+           DECRYPT_KEY: ENCRYPT_KEY's public key
+        '''
+        SIGN_KEY        = auto()
+        VERIFY_KEY      = auto()
+        ENCRYPT_KEY     = auto()
+        DECRYPT_KEY     = auto()
+    
     class key_source(autoname):
         FILE            = auto()
         KEY_VAULT       = auto()
         MEMORY          = auto()
 
-    def __init__(self, key_source = key_source.FILE, *args, **kwargs):
-        self.__init_azure_env_id()
-        self.__init_azure_key_value_name()
+    def __init__(self, key_source = key_source.FILE, azure_names = azure_names, *args, **kwargs):
         self.set_key_source(key_source)
+        if key_source == key_source.KEY_VAULT:
+            self.__init_azure_env_id()
+            self.__init_azure_key_value_name(azure_names)
         pass
 
     def __init_azure_env_id(self):
         for item in eaen:
             setattr(self, item.name, item)
 
-    def __init_azure_key_value_name(self):
-        setattr(self, "azure_key_vault", azure_key_vault([item.value for item in azure_names]))
+    def __init_azure_key_value_name(self, azure_names = azure_names):
+        setattr(self, "azure_key_vault", azure_key_vault([item.value for item in self.azure_names]))
 
     def create_keys(self, num = 2048, **kwargs):
         return create_keys(num)
@@ -149,7 +162,7 @@ class safemsgclient(object):
             elif key_source == self.key_source.KEY_VAULT:
                 azure_name = kwargs.get("azure_name")
                 key_vault = self.azure_key_vault.get(azure_name)
-                key = self.get_azure_secret(key_vault.key_vault_name, key_vault.key_name)
+                key = self.get_azure_secret_value(key_vault.key_vault_name, key_vault.key_name)
                 memory_id = f"{key_vault.key_vault_name}-{key_vault.key_name}" if not memory_id else memory_id
 
             args[0] = key
@@ -256,7 +269,7 @@ class safemsgclient(object):
         '''
         return azure_get_deleted_secret(vault_name, key_name, **kwargs)
 
-    def get_azure_deleted_secret_value(self, vault_name, key_name, **kwargs):
+    def get_azure_deleted_secret_id(self, vault_name, key_name, **kwargs):
         '''
         @dev get secret from azure key vault
         @param vault_name key vault name
@@ -265,9 +278,20 @@ class safemsgclient(object):
         '''
         return self.get_azure_deleted_secret(vault_name, key_name, **kwargs).id
 
-    def set_azure_key_path(self, azure_name : azure_names, key_vault_name, key_name):
+    def purge_deleted_secret(self, vault_name, key_name, **kwargs):
+        '''
+        @dev purge deleted secret from azure key vault
+        @param vault_name key vault name
+        @param key_name sercrt's key 
+        '''
+        return azure_purge_deleted_secret(self, vault_name, key_name, **kwargs)
+
+    def set_azure_key_path(self, azure_name , key_vault_name, key_name):
+        if not self.azure_key_vault.is_exists(azure_name):
+            self.azure_key_vault.add(azure_name)
+
         return self.azure_key_vault.set(azure_name, key_vault_name, key_name)
-    
+
     def get_azure_secrets_keys(self, vault_name):
         return azure_get_secrets_keys(vault_name)
 
