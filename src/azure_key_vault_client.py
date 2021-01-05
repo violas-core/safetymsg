@@ -2,6 +2,9 @@ import os
 import cmd
 import datetime
 
+from src.libfuncs import (
+        split_line
+        )
 '''
    从azure 的key vault获取密钥方法(https://docs.microsoft.com/zh-cn/azure/key-vault/secrets/quick-create-python?tabs=cmd)
 
@@ -142,6 +145,8 @@ def get_client(uri):
 retrieves a secret previously stored in the Key Vault.
 
 '''
+
+@split_line
 def get_secret(vault_name, key_name, version = None, **kwargs):
     client = get_client(get_key_value_uri(vault_name))
     return client.get_secret(key_name, version, **kwargs)

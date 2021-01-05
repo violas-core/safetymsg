@@ -12,7 +12,7 @@ def print_log(data):
 def split_line(f):
     @wraps(f)
     def with_split_line(*args, **kwargs):
-        print_log(f"\n*********************call {f.__name__}*****************")
+        print_log(f"\n*********************call {f.__name__}(args = {args}, kwargs = {kwargs})*****************")
         return f(*args, **kwargs)
     return with_split_line
 

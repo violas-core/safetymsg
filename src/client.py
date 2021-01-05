@@ -97,6 +97,8 @@ class azure_key_vault(object):
 
 class safemsgclient(object):
 
+    key_memory_id = "memory_id"
+    key_head_flag = "memkey_"
     class azure_names(autoname):
         '''
            SIGN_KEY: private key
@@ -114,12 +116,23 @@ class safemsgclient(object):
         KEY_VAULT       = auto()
         MEMORY          = auto()
 
-    def __init__(self, key_source = key_source.FILE, azure_names = azure_names, *args, **kwargs):
+    def __init__(self, key_source = key_source.FILE, azure_names = azure_names, use_mempool = True, *args, **kwargs):
         self.set_key_source(key_source)
+        setattr(self, "use_mempool", use_mempool)
+        self.__mempool_secrets = {}
         if key_source == key_source.KEY_VAULT:
             self.__init_azure_env_id()
             self.__init_azure_key_value_name(azure_names)
         pass
+
+    def clear_mempool_secrets(self):
+        self.__mempool_secrets = {}
+
+    def use_mempool_secret(self):
+        self.use_mempool = True
+
+    def unuse_mempool_secret(self):
+        self.use_mempool = False
 
     def __init_azure_env_id(self):
         for item in eaen:
@@ -137,8 +150,14 @@ class safemsgclient(object):
         return False
 
     def load_key(self, filename, **kwargs):
+        secret = None
         if filename:
-            return load_key_from_file(filename)
+            if self.use_mempool:
+                secret = self.get_memory_key_value(filname)
+            if not secret:
+                secret = load_key_from_file(filename)
+                self.set_memory_key_value(filename, secret)
+            return secret
         return None
 
     def pre_azure_key(f):
@@ -147,27 +166,22 @@ class safemsgclient(object):
             args = list(args[1:])
             key_source = getattr(self, "key_source")
 
-            memory_id = kwargs.get("memory_id")
-            key = self.get_memory_key_value(memory_id)
+            key = None
             if args[0] and len(args[0]) > 0:
                 key = args[0]
-            elif key:
-                pass
             elif key_source == self.key_source.MEMORY:
-                key = self.get_memory_key_value(f.__name__)
+                memory_id = kwargs.get(self.key_memory_id)
+                key = self.get_memory_key_value(memory_id)
             elif key_source == self.key_source.FILE:
                 filename = kwargs.get("filename")
                 key = self.load_key(filename)
-                memory_id = filename if not memory_id else memory_id
             elif key_source == self.key_source.KEY_VAULT:
                 azure_name = kwargs.get("azure_name")
                 key_vault = self.azure_key_vault.get(azure_name)
                 key = self.get_azure_secret_value(key_vault.key_vault_name, key_vault.key_name)
-                memory_id = f"{key_vault.key_vault_name}-{key_vault.key_name}" if not memory_id else memory_id
 
             args[0] = key
             
-            self.set_memory_key_value(memory_id, key)
             return f(self, *args, **kwargs)
         return use_azure
 
@@ -228,9 +242,19 @@ class safemsgclient(object):
         @param version version of the secret to get. if unspecified, gets the latest version
         @return secret(KeyVaultSecret) 
         '''
-        return azure_get_secret(vault_name, key_name, version, **kwargs)
+        secret = None
+        key = self.create_memory_key_with_args(vault_name, key_name, version)
+        if self.use_mempool:
+            secret = self.get_memory_key_value(key)
+            if not secret:
+                secret = azure_get_secret(vault_name, key_name, version, **kwargs)
+        else:
+            secret = azure_get_secret(vault_name, key_name, version, **kwargs)
 
-    def get_azure_secret_value(self, vault_name, key_name):
+        self.set_memory_key_value(key, secret)
+        return secret
+
+    def get_azure_secret_value(self, vault_name, key_name, version = None, **kwargs):
         '''
         @dev get secret from azure key vault
         @param vault_name name of key vault 
@@ -238,7 +262,17 @@ class safemsgclient(object):
         @param key_value the value of secret
         @return value of secret(KeyVaultSecret) 
         '''
-        return self.get_azure_secret(vault_name, key_name).value
+        secret = None
+        key = self.create_memory_key_with_args(vault_name, key_name, version, "value")
+        if self.use_mempool:
+            secret = self.get_memory_key_value(key)
+            if not secret:
+                secret = azure_get_secret(vault_name, key_name, version, **kwargs).value
+        else:
+            secret = azure_get_secret(vault_name, key_name, version, **kwargs).value
+
+        self.set_memory_key_value(key, secret)
+        return secret
 
     def set_azure_secret(self, vault_name, key_name, key_value, **kwargs):
         '''
@@ -254,10 +288,13 @@ class safemsgclient(object):
             expires_on (datetime) – Expiry date of the secret in UTC
         @return KeyVaultSecret
         '''
-
-        return azure_set_secret(vault_name, key_name, key_value, **kwargs)
+        
+        ret = azure_set_secret(vault_name, key_name, key_value, **kwargs)
+        self.del_memory_value(self.create_memory_key_with_args(vault_name, key_name))
+        return ret
 
     def del_azure_secret(self, vault_name, key_name, **kwargs):
+        self.del_memory_value(self.create_memory_key_with_args(vault_name, key_name))
         return azure_del_secret(vault_name, key_name, **kwargs)
 
     def get_azure_deleted_secret(self, vault_name, key_name, **kwargs):
@@ -296,16 +333,28 @@ class safemsgclient(object):
         return azure_get_secrets_keys(vault_name)
 
     def create_memory_key(self, name):
-        return f"memkey_{name}"
+        if name.startswith(self.key_head_flag):
+            return name
+        return self.make_md5(f"{self.key_head_flag}_{name}")
+
+    def create_memory_key_with_args(self, *args):
+        name = '_'.join([str(arg) for arg in args])
+        return self.create_memory_key(name)
 
     def set_key_source(self, key_source = key_source.MEMORY):
         setattr(self, "key_source", key_source)
 
     def set_memory_key_value(self, name, value):
-        return setattr(self, self.create_memory_key(name), value)
+        return self.__mempool_secrets.update({self.create_memory_key(name): value})
 
     def get_memory_key_value(self, name):
-        return getattr(self, self.create_memory_key(name), None)
+        return self.__mempool_secrets.get(self.create_memory_key(name), None)
+
+    def del_memory_value(self, key_start):
+        for key in self.__mempool_secrets:
+            if key.startswith(key_start):
+                self.__mempool_secrets[key] = None
+            
 
     def __getatter__(self, name):
         if getattr(self, name):
