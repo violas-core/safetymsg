@@ -1,4 +1,7 @@
 import os
+from src.libfuncs import (
+        split_line
+        )
 from src.crypto_client import (
         create_keys,
         save_file,
@@ -209,11 +212,20 @@ class safemsgclient(object):
     def set_azure_client_id(self, id):
         self.AZURE_CLIENT_ID.env = id
 
+    def get_azure_client_id(self):
+        return self.AZURE_CLIENT_ID.env
+
     def set_azure_tenant_id(self, id):
         self.AZURE_TENANT_ID.env = id
 
+    def get_azure_tenant_id(self):
+        return self.AZURE_TENANT_ID.env
+
     def set_azure_client_secret(self, secret):
         self.AZURE_CLIENT_SECRET.env = secret
+    
+    def get_azure_client_secret(self):
+        return self.AZURE_CLIENT_SECRET.env
     
     def set_azure_secret_ids(self, client_id, tenant_id, secret):
         self.set_azure_client_id(client_id)
@@ -242,16 +254,20 @@ class safemsgclient(object):
         @param version version of the secret to get. if unspecified, gets the latest version
         @return secret(KeyVaultSecret) 
         '''
+        update_mempool = True
         secret = None
         key = self.create_memory_key_with_args(vault_name, key_name, version)
         if self.use_mempool:
             secret = self.get_memory_key_value(key)
             if not secret:
                 secret = azure_get_secret(vault_name, key_name, version, **kwargs)
+            else:
+                update_mempool = False
         else:
             secret = azure_get_secret(vault_name, key_name, version, **kwargs)
 
-        self.set_memory_key_value(key, secret)
+        if update_mempool:
+            self.set_memory_key_value(key, secret)
         return secret
 
     def get_azure_secret_value(self, vault_name, key_name, version = None, **kwargs):
@@ -263,15 +279,19 @@ class safemsgclient(object):
         @return value of secret(KeyVaultSecret) 
         '''
         secret = None
+        update_mempool = True
         key = self.create_memory_key_with_args(vault_name, key_name, version, "value")
         if self.use_mempool:
             secret = self.get_memory_key_value(key)
             if not secret:
                 secret = azure_get_secret(vault_name, key_name, version, **kwargs).value
+            else:
+                update_mempool = False
         else:
             secret = azure_get_secret(vault_name, key_name, version, **kwargs).value
 
-        self.set_memory_key_value(key, secret)
+        if update_mempool:
+            self.set_memory_key_value(key, secret)
         return secret
 
     def set_azure_secret(self, vault_name, key_name, key_value, **kwargs):
@@ -344,12 +364,15 @@ class safemsgclient(object):
     def set_key_source(self, key_source = key_source.MEMORY):
         setattr(self, "key_source", key_source)
 
+    @split_line
     def set_memory_key_value(self, name, value):
         return self.__mempool_secrets.update({self.create_memory_key(name): value})
 
+    @split_line
     def get_memory_key_value(self, name):
         return self.__mempool_secrets.get(self.create_memory_key(name), None)
 
+    @split_line
     def del_memory_value(self, key_start):
         for key in self.__mempool_secrets:
             if key.startswith(key_start):

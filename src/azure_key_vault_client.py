@@ -119,6 +119,10 @@ class enumbase(Enum):
     def env(self, value):
         os.environ[self.name] = value
 
+    @env.getter
+    def env(self):
+        return os.environ.get(self.name)
+
     def env_del():
         if self.env:
             del os.environ[self.name]
@@ -132,6 +136,7 @@ class azure_environ_name(autouppername):
     AZURE_TENANT_ID     = auto()
     AZURE_CLIENT_SECRET = auto()
 
+@split_line
 def get_key_value_uri(vault_name):
     return f"https://{vault_name}.vault.azure.net"
 
@@ -159,6 +164,7 @@ given name exists, `set_secret` creates a new secret with that name and the
 given value. If the given name is in use, `set_secret` creates a new version
 of that secret, with the given value.
 '''
+@split_line
 def set_secret(vault_name, key_name, key_value, **kwargs):
     client = get_client(get_key_value_uri(vault_name))
     return client.set_secret(key_name, key_value, **kwargs)
@@ -170,6 +176,7 @@ helpful when the vault has [soft-delete][soft_delete] enabled, and you want to p
 soon as possible. When [soft-delete][soft_delete] is disabled, `begin_delete_secret` itself is permanent.
 '''
 
+@split_line
 def del_secret(vault_name, key_name, **kwargs):
     client = get_client(get_key_value_uri(vault_name))
     list_deleted = client.list_deleted_secrets()
@@ -178,17 +185,20 @@ def del_secret(vault_name, key_name, **kwargs):
         poller = client.begin_delete_secret(key_name, **kwargs)
         poller.wait()
     
+@split_line
 def purge_deleted_secret(vault_name, key_name, **kwargs):
     client = get_client(get_key_value_uri(vault_name))
     if secret_is_deleted(None, key_name, client):
         client.purge_deleted_secret(key_name, **kwargs)
 
+@split_line
 def get_deleted_secret_names(vault_name, client = None):
     if not client:
         client = get_client(get_key_value_uri(vault_name))
     list_deleted = client.list_deleted_secrets()
     return [item.name for item in list_deleted]
 
+@split_line
 def secret_is_deleted(vault_name, key_name, client = None):
     if not client:
         client = get_client(get_key_value_uri(vault_name))
