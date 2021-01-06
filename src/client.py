@@ -153,7 +153,7 @@ class safemsgclient(object):
         secret = None
         if filename:
             if self.use_mempool:
-                secret = self.get_memory_key_value(filname)
+                secret = self.get_memory_key_value(filename)
             if not secret:
                 secret = load_key_from_file(filename)
                 self.set_memory_key_value(filename, secret)
