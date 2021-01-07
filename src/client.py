@@ -1,4 +1,4 @@
-import os
+import os,sys, json
 from src.libfuncs import (
         split_line
         )
@@ -123,6 +123,7 @@ class safemsgclient(object):
         self.set_key_source(key_source)
         setattr(self, "use_mempool", use_mempool)
         self.__mempool_secrets = {}
+        self.set_key_source(key_source)
         if key_source == key_source.KEY_VAULT:
             self.__init_azure_env_id()
             self.__init_azure_key_value_name(azure_names)
@@ -167,7 +168,7 @@ class safemsgclient(object):
         def use_azure(*args, **kwargs):
             self = args[0]
             args = list(args[1:])
-            key_source = getattr(self, "key_source")
+            key_source = getattr(self, "key_source", None)
 
             key = None
             if args[0] and len(args[0]) > 0:
@@ -231,6 +232,47 @@ class safemsgclient(object):
         self.set_azure_client_id(client_id)
         self.set_azure_tenant_id(tenant_id)
         self.set_azure_client_secret(secret)
+
+    def encode_azure_secret_ids(self, pub_key, client_id, tenant_id, secret, encode_secret = None):
+        kwargs = {
+                "AZURE_CLIENT_ID" : client_id,\
+                "AZURE_TENANT_ID" : tenant_id, \
+                "AZURE_CLIENT_SECRET" : secret
+                }
+        datas = json.dumps(kwargs)
+        ids_datas = self.encrypt(pub_key, datas, encode_secret)
+        return ids_datas.encode().hex()
+    
+    def decode_azure_secret_ids(self, datas, pri_key, encode_secret = None):
+        encrypt_datas = bytes.fromhex(datas).decode()
+        decrypt_datas = self.decrypt(pri_key, encrypt_datas, encode_secret)
+        ids = json.loads(decrypt_datas)
+        return (ids.get("AZURE_CLIENT_ID"), \
+                ids.get("AZURE_TENANT_ID"), \
+                ids.get("AZURE_CLIENT_SECRET"))
+    
+    def save_azure_secret_ids_to_file(self, ids_filename, pub_key, client_id, tenant_id, secret, encode_secret = None):
+        datas = self.encode_azure_secret_ids(pub_key, client_id, tenant_id, secret, encode_secret)
+    
+        with open(ids_filename, 'w') as pf:
+            pf.write(datas)
+            return True
+        return False
+    
+    def load_azure_secret_ids_from_file(self, ids_filename, pri_key, encode_secret = None):
+        encrypt_datas = None
+        with open(ids_filename, 'r') as pf:
+            encrypt_datas = pf.read()
+
+        assert encrypt_datas, f"load ids file(ids_filename) failed."
+
+        return self.decode_azure_secret_ids(encrypt_datas, pri_key, encode_secret)
+
+    def set_azure_secret_ids_with_file(self, ids_filename, pri_key, encode_secret = None):
+        key_source = getattr(self, "key_source", None)
+        assert key_source == key_source.KEY_VAULT, f"client key source is not {key_source.KEY_VAULT.name}"
+        client_id, tenant_id, secret = self.load_azure_secret_ids_from_file(ids_filename, pri_key, encode_secret)
+        self.set_azure_secret_ids(client_id, tenant_id, secret)
 
     def get_azure_envs(self):
         '''
@@ -364,7 +406,6 @@ class safemsgclient(object):
     def set_key_source(self, key_source = key_source.MEMORY):
         setattr(self, "key_source", key_source)
 
-    @split_line
     def set_memory_key_value(self, name, value):
         return self.__mempool_secrets.update({self.create_memory_key(name): value})
 
