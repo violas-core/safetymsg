@@ -1,8 +1,8 @@
 import os,sys, json
-from src.libfuncs import (
+from libfuncs import (
         split_line
         )
-from src.crypto_client import (
+from crypto_client import (
         create_keys,
         save_file,
         load_key_from_file,
@@ -13,7 +13,7 @@ from src.crypto_client import (
         make_md5
         )
 
-from src.azure_key_vault_client import (
+from azure_key_vault_client import (
         get_secret as azure_get_secret,
         set_secret as azure_set_secret,
         del_secret as azure_del_secret, 

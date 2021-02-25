@@ -2,7 +2,7 @@ import os
 import cmd
 import datetime
 
-from src.libfuncs import (
+from libfuncs import (
         split_line
         )
 '''

@@ -1,17 +1,17 @@
 
-import src.libfuncs
-from src.libfuncs import (
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "./src"))
+from libfuncs import (
         split_line,
         print_log,
         str_to_bytes,
         bytes_to_str
         )
 
-import src.client
-safemsgclient = src.client.safemsgclient
-key_source = src.client.safemsgclient.key_source
-azure_names = src.client.safemsgclient.azure_names
-smc = src.client.safemsgclient
+import client
+safemsgclient = client.safemsgclient
+key_source = client.safemsgclient.key_source
+azure_names = client.safemsgclient.azure_names
+smc = client.safemsgclient
 
 __all__ = [
         "safemsgclient",

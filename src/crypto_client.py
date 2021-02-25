@@ -17,7 +17,7 @@ from Crypto.Cipher import (
  
 from functools import wraps
 
-from src.libfuncs import *
+from libfuncs import *
 
 '''
   @dev create private key and public key
