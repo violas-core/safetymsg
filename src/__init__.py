@@ -1,6 +1,6 @@
-
+import os, sys
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "./src"))
-from libfuncs import (
+from .libfuncs import (
         split_line,
         print_log,
         str_to_bytes,
