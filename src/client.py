@@ -205,6 +205,7 @@ class safemsgclient(object):
     def decrypt(self, privkey, encrypt_message, secret = None, sentinel = None, **kwargs):
         return decrypt(privkey, encrypt_message, secret, sentinel)
 
+    @classmethod
     def make_md5(self, message):
         return make_md5(message)
 
