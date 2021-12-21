@@ -49,16 +49,18 @@ from libfuncs import (
     参照以下Python代码实现：
 '''
 
-
-from azure.keyvault.secrets import (
-        KeyVaultSecret,
-        SecretClient
-        )
-from azure.identity import (
-        DefaultAzureCredential,
-        EnvironmentCredential,
-        InteractiveBrowserCredential
-        )
+USE_AZURE_VALUT_NAME = "SM_USE_AZURE_VALUT" 
+use_azure_valut = int(os.environ.get(USE_AZURE_VALUT_NAME, 0)) == 1
+if use_azure_valut:
+    from azure.keyvault.secrets import (
+            KeyVaultSecret,
+            SecretClient
+            )
+    from azure.identity import (
+            DefaultAzureCredential,
+            EnvironmentCredential,
+            InteractiveBrowserCredential
+            )
 
 '''
 初始化环境：参照创建client部分说明
@@ -141,6 +143,7 @@ def get_key_value_uri(vault_name):
     return f"https://{vault_name}.vault.azure.net"
 
 #https://azuresdkdocs.blob.core.windows.net/$web/python/azure-keyvault-secrets/latest/azure.keyvault.secrets.html#module-azure.keyvault.secrets
+
 def get_client(uri):
     credential = DefaultAzureCredential()
     return SecretClient(vault_url=uri, credential=credential)
