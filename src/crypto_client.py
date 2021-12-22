@@ -32,6 +32,8 @@ def create_keys(num = 2048):
     rsa = RSA.generate(num, random_gen)
     pri = rsa.exportKey()
     pub = rsa.publickey().exportKey()
+    print(pri)
+    print(pub)
     return (bytes_to_str(base64.b64encode(pri)), bytes_to_str(base64.b64encode(pub)))
 
 '''
@@ -51,8 +53,11 @@ def save_file(key, filename):
   @return key value typt = base64
 '''
 def load_key_from_file(filename):
+    print(filename)
     if not os.path.isfile(filename):
         raise ValueError(f"input filename({filename}) not found.")
+    else:
+        print("load file: {}".format(filename))
 
     with open(filename, "rb") as pk:
         key= pk.read()
@@ -95,6 +100,22 @@ def generate_sign(privkey, unsign_message, secret = None):
     signature = base64.b64encode(sign)
     return bytes_to_str(signature)
 
+'''
+   @dev generate signature
+   @param privkey private key
+   @param unsign_message unsignature message, type = string
+   @param secret rsa key secret, default None
+   @return singnature message
+'''
+def generate_sign_hex(privkey, unsign_message, secret = None):
+    privkey = str_to_bytes(privkey)
+    unsign_message = str_to_bytes(unsign_message)
+    rsaKey = RSA.importKey(base64.b64decode(privkey), passphrase=secret)
+    signer = Signature_pkcs1_v1_5.new(rsaKey)
+    digest = SHA256.new()
+    digest.update(unsign_message)
+    sign = signer.sign(digest)
+    return sign.hex()
 '''
    @dev encrypt message with pubkey 
    @param pubkey encrypt privkey public key 
