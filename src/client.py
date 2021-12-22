@@ -7,6 +7,7 @@ from crypto_client import (
         save_file,
         load_key_from_file,
         generate_sign,
+        generate_sign_hex,
         verify_sign,
         encrypt,
         decrypt,
@@ -189,6 +190,9 @@ class safemsgclient(object):
             return f(self, *args, **kwargs)
         return use_azure
 
+    def load_key_from_file(self, filename):
+        return load_key_from_file(filename)
+
     @pre_azure_key
     def verify_sign(self, pubkey, message, sign, secret = None, **kwargs):
         return verify_sign(pubkey, message, sign, secret)
@@ -196,6 +200,10 @@ class safemsgclient(object):
     @pre_azure_key
     def generate_sign(self, privkey, unsign_message, secret = None, **kwargs): 
         return generate_sign(privkey, unsign_message, secret)
+
+    @pre_azure_key
+    def generate_sign_hex(self, privkey, unsign_message, secret = None, **kwargs): 
+        return generate_sign_hex(privkey, unsign_message, secret)
 
     @pre_azure_key
     def encrypt(self, pubkey, message, secret = None, **kwargs):
